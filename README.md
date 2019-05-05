@@ -36,8 +36,12 @@ doesn't exist and the scripts will create a `repos.json` file in that directory 
 metadata for that backup. Each repo will be written to a `<name>.git` directory in `<target-dir>` in a flat
 structure.
 
-### Limitations
+### Limitations and details
 
 The current version of this only clones the current user's git repos. It doesn't support pulling other repos
 that the user may have access to or anything like that.
+
+This also does a full clone of every repo using `--mirror` each time it's run. This means that it's going to
+take roughly the same amount of time to run each time it's run as it's designed to create snapshots rather
+than pulling changes since the last run.
 
