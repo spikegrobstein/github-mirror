@@ -1,0 +1,21 @@
+#! /usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+target_dir="${1:-}"
+
+if [[ -z "$target_dir" ]]; then
+  echo "USAGE: $0 <target-dir>"
+  exit 1
+fi
+
+mkdir -p "$target_dir"
+
+bin_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+outfile="$target_dir/repos.json"
+"$bin_dir/list_repos" "$outfile"
+"$bin_dir/mirror_repos" "$outfile" "$target_dir"
+
