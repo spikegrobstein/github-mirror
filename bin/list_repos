@@ -60,7 +60,7 @@ list_repos() {
   local resp
   local headers
   local body
-  resp="$( hub api -i "user/repos?affiliation=owner&page=$page" )"
+  resp="$( hub api -i "user/repos?per_page=100&page=$page" )"
 
 
   headers="$( head -n -2 <<< "$resp" )"
