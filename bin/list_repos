@@ -1,0 +1,111 @@
+#! /usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+HAS_NEXT=0 # set this to 1 if there is a next page
+TEMP_PATHS=()
+TEMP_FILE=''
+
+delete_temp_files() {
+  rm -rf "${TEMP_PATHS[@]}"
+}
+
+info() {
+  printf "[INFO] %s\n" "$@" >&2
+}
+
+new_tempfile() {
+  TEMP_FILE="$( mktemp '/tmp/git-repo.XXXXXX' )"
+  TEMP_PATHS+=("$TEMP_FILE")
+
+  info "There are now ${#TEMP_PATHS[@]} tempfiles"
+}
+
+list_all_repos() {
+  local to_file="$1"
+
+  local page=1
+  local repo_json
+
+  trap delete_temp_files EXIT
+
+  new_tempfile
+  local all_repo_json_file="$TEMP_FILE"
+  new_tempfile
+  local current_json_file="$TEMP_FILE"
+
+  echo '[]' > "$all_repo_json_file"
+
+  while true; do
+    info "Fetching page $page"
+    list_repos "$page" > "$current_json_file"
+    append_repos "$all_repo_json_file" "$current_json_file" \
+      | sponge "$all_repo_json_file"
+
+    if (( ! HAS_NEXT )); then
+      break
+    fi
+
+    page="$(( page + 1 ))"
+  done
+
+  cp "$all_repo_json_file" "$to_file"
+}
+
+list_repos() {
+  local page="$1"
+
+  local resp
+  local headers
+  local body
+  resp="$( hub api -i "user/repos?affiliation=owner&page=$page" )"
+
+
+  headers="$( head -n -2 <<< "$resp" )"
+  body="$( tail -n 1 <<< "$resp" )"
+
+  # info "headers: $headers"
+  info "Requested and parsed page $page"
+
+  parse_next_header "$headers"
+
+  # output the body, parsed. so we error if it's invalid JSON
+  jq . <<< "$body"
+}
+
+parse_next_header() {
+  local headers="$1"
+  local link
+  link="$( grep -i '^link: ' <<< "$headers" )"
+
+  # info "link: $link"
+
+  if grep -qi 'rel=.next.' <<< "$link"; then
+    info "Has next page"
+    HAS_NEXT=1
+  else
+    info "on last page."
+    HAS_NEXT=0
+  fi
+}
+
+append_repos() {
+  local all_file="$1"
+  local new_file="$2"
+
+  jq \
+    --slurpfile new "$new_file" \
+    '. + $new[0]' "$all_file"
+}
+
+outfile="${1:-}"
+
+if [[ -z "$outfile" ]]; then
+  echo "USAGE: $0 <outfile>"
+  exit 1
+fi
+
+list_all_repos "$outfile"
+

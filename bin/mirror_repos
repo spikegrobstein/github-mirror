@@ -1,0 +1,54 @@
+#! /usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+mirror_repos() {
+  local data_file="$1"
+  local target_dir="$2"
+
+  local repo_urls
+  repo_urls="$( get_repo_urls "$data_file" )"
+  mapfile -t repo_urls <<< "$repo_urls"
+
+  mkdir -p "$target_dir"
+  pushd "$target_dir"
+
+  local repo
+  for repo in "${repo_urls[@]}"; do
+    mirror_repo "$repo"
+  done
+}
+
+mirror_repo() {
+  local repo_url="$1"
+
+  git clone --mirror "$repo_url"
+}
+
+get_repo_urls() {
+  local data_file="$1"
+
+  jq \
+    --raw-output \
+    --exit-status \
+    '.[].ssh_url' "$data_file"
+}
+
+repo_data_file="${1:-}"
+target_dir="${2:-}"
+
+if [[ -z "$repo_data_file" || -z "$target_dir" ]]; then
+  echo "USAGE: $0 <data-file>"
+  exit 1
+fi
+
+repo_data_file="$( realpath "$repo_data_file" )"
+
+if [[ ! -s "$repo_data_file" ]]; then
+  echo "Data file does not exist: $repo_data_file"
+fi
+
+mirror_repos "$repo_data_file" "$target_dir"
+
