@@ -8,32 +8,42 @@ mirror_repos() {
   local data_file="$1"
   local target_dir="$2"
 
-  local repo_urls
-  repo_urls="$( get_repo_urls "$data_file" )"
-  mapfile -t repo_urls <<< "$repo_urls"
+  local repo_specs
+  repo_specs="$( get_repo_specs "$data_file" )"
+  mapfile -t repo_specs <<< "$repo_specs"
 
   mkdir -p "$target_dir"
   pushd "$target_dir"
 
-  local repo
-  for repo in "${repo_urls[@]}"; do
-    mirror_repo "$repo"
+  local repo_spec
+  for repo_spec in "${repo_specs[@]}"; do
+    mirror_repo "$repo_spec"
   done
 }
 
 mirror_repo() {
-  local repo_url="$1"
+  local repo_spec="$1"
 
-  git clone --mirror "$repo_url"
+  local name
+  local owner
+  local url
+
+  owner="$( cut -d ' ' -f 1 <<< "$repo_spec" )"
+  name="$( cut -d ' ' -f 2 <<< "$repo_spec" )"
+  url="$( cut -d ' ' -f 3 <<< "$repo_spec" )"
+
+  local dir="${owner}/${name}.git"
+  mkdir -p "$dir"
+  git clone --mirror "$url" "$dir"
 }
 
-get_repo_urls() {
+get_repo_specs() {
   local data_file="$1"
 
   jq \
     --raw-output \
     --exit-status \
-    '.[].ssh_url' "$data_file"
+    '.[] | "\(.owner.login) \(.name) \(.ssh_url)"' "$data_file"
 }
 
 repo_data_file="${1:-}"
