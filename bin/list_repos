@@ -63,7 +63,10 @@ list_repos() {
   resp="$( hub api -i "user/repos?per_page=100&page=$page" )"
 
 
-  headers="$( head -n -2 <<< "$resp" )"
+  # everything up to the first blank line
+  headers="$( extract_header "$resp" )"
+
+  # just the last line. all the json is a single line
   body="$( tail -n 1 <<< "$resp" )"
 
   # info "headers: $headers"
@@ -73,6 +76,22 @@ list_repos() {
 
   # output the body, parsed. so we error if it's invalid JSON
   jq . <<< "$body"
+}
+
+extract_header() {
+  local data="$1"
+
+  local lines
+  mapfile -t lines <<< "$data"
+
+  local line
+  for line in "${lines[@]}"; do
+    if [[ -z "$line" ]]; then
+      break
+    fi
+
+    echo "$line"
+  done
 }
 
 parse_next_header() {
