@@ -4,6 +4,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+libexec_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )/libexec"
+PATH="$libexec_dir:$PATH"
+
 mirror_repos() {
   local data_file="$1"
   local target_dir="$2"
@@ -15,26 +18,21 @@ mirror_repos() {
   mkdir -p "$target_dir"
   pushd "$target_dir"
 
+  local errors=()
+
   local repo_spec
   for repo_spec in "${repo_specs[@]}"; do
-    mirror_repo "$repo_spec"
+    if ! mirror_repo "$repo_spec"; then
+      echo "Failed to clone $repo_spec" >&2
+      errors+=("$repo_spec")
+    fi
   done
-}
 
-mirror_repo() {
-  local repo_spec="$1"
-
-  local name
-  local owner
-  local url
-
-  owner="$( cut -d ' ' -f 1 <<< "$repo_spec" )"
-  name="$( cut -d ' ' -f 2 <<< "$repo_spec" )"
-  url="$( cut -d ' ' -f 3 <<< "$repo_spec" )"
-
-  local dir="${owner}/${name}.git"
-  mkdir -p "$dir"
-  git clone --mirror "$url" "$dir"
+  if [[ "${#errors[@]}" -gt 0 ]]; then
+    echo "There were ${#errors[@]} errors:" >&2
+    printf "  - %s\n" "${errors[@]}" >&2
+    return 1
+  fi
 }
 
 get_repo_specs() {

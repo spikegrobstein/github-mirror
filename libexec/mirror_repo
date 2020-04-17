@@ -1,0 +1,16 @@
+#! /usr/bin/env bash
+
+set -euo pipefail
+
+repo_spec="$1"
+
+owner="$( cut -d ' ' -f 1 <<< "$repo_spec" )"
+name="$( cut -d ' ' -f 2 <<< "$repo_spec" )"
+url="$( cut -d ' ' -f 3 <<< "$repo_spec" )"
+
+dir="${owner}/${name}.git"
+
+mkdir -p "$dir"
+
+git clone --mirror "$url" "$dir"
+
